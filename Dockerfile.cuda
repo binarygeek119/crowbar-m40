@@ -36,7 +36,7 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release \
 
 # Build Python wheel
 WORKDIR /ct2/python
-RUN python3 -m pip install --no-cache-dir --break-system-packages setuptools wheel
+RUN python3 -m pip install --no-cache-dir --break-system-packages setuptools wheel pybind11
 RUN python3 setup.py bdist_wheel
 RUN cp dist/*.whl /ct2-wheel.whl
 
