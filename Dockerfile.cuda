@@ -5,13 +5,25 @@
 # with sm_52 included alongside modern architectures.
 
 # ---- Stage 1: Build CTranslate2 from source with Maxwell sm_52 support ----
-FROM nvidia/cuda:12.6.3-devel-debian12 AS ct2-build
+# Use the same base as runtime to ensure GLIBC compatibility
+FROM python:3.12-slim-bookworm AS ct2-build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Install CUDA toolkit and build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake git build-essential python3 python3-dev python3-pip python3-venv \
-    && rm -rf /var/lib/apt/lists/*
+    wget gnupg ca-certificates \
+    && wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    cuda-toolkit-12-6 \
+    cmake git build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm cuda-keyring_1.1-1_all.deb
+
+ENV PATH=/usr/local/cuda/bin:${PATH}
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
 # Clone CTranslate2 v4.8.2 (matches the lock file)
 RUN git clone --depth 1 --branch v4.8.2 --recursive \
