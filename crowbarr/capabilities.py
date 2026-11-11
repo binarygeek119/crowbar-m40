@@ -12,6 +12,7 @@ import time
 _PROBE = r'''
 import ctypes
 import os
+import subprocess
 import sys
 
 result = {}

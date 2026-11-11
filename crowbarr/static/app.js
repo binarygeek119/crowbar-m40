@@ -947,7 +947,10 @@ function settingsPage() {
               int8_float16: "INT8 and FP16 (graphics card only)",
               float16: "FP16 (graphics card only)",
             }[type],
-            settings.device === "cpu" && type.includes("float16"),
+            settings.device === "cpu" && type.includes("float16") ||
+            (settings.device === "cuda" && Array.isArray(settings.capabilities?.cuda?.compute_types) &&
+             settings.capabilities.cuda.compute_types.length > 0 &&
+             !settings.capabilities.cuda.compute_types.includes(type) && type.includes("float16")),
           ]),
           '<span id="precision-help" aria-live="polite">Lower precision uses less memory and runs faster, with a small loss of accuracy. The CPU supports INT8 and FP32 only.</span>',
         ) + numeric(
