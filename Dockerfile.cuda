@@ -53,22 +53,8 @@ RUN python /build_alignment.py --output /wheels
 
 # Filter the lock file to exclude ctranslate2 (we install the custom build instead)
 COPY packaging/inference/cuda.lock /tmp/runtime.lock
-RUN python3 -c "
-import re
-text = open('/tmp/runtime.lock').read()
-lines = text.split('\n')
-out = []
-skip = False
-for line in lines:
-    if re.match(r'^ctranslate2==', line):
-        skip = True
-        continue
-    if skip and line and not line[0].isspace():
-        skip = False
-    if not skip:
-        out.append(line)
-open('/tmp/runtime-no-ct2.lock', 'w').write('\n'.join(out))
-"
+COPY filter-ct2-lock.py /tmp/filter-ct2-lock.py
+RUN python3 /tmp/filter-ct2-lock.py /tmp/runtime.lock /tmp/runtime-no-ct2.lock
 
 # Install the custom CTranslate2 (with sm_52 support) first, then the rest
 RUN python -m venv /opt/venv \
