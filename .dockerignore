@@ -10,3 +10,5 @@ crowbarr/**/__pycache__
 !packaging/inference/build_alignment.py
 !packaging/inference/cpu.lock
 !packaging/inference/cuda.lock
+!patch-awq-sm52.py
+!filter-ct2-lock.py
