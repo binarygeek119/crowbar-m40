@@ -38,15 +38,14 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release \
 # Build Python wheel
 WORKDIR /ct2/python
 RUN python3 -m pip install --no-cache-dir --break-system-packages setuptools wheel pybind11
-RUN python3 setup.py bdist_wheel
-RUN cp dist/*.whl /ct2-wheel.whl
+RUN python3 setup.py bdist_wheel && cp dist/*.whl /tmp/
 
 # ---- Stage 2: Dependencies ----
 FROM python:3.12-slim-bookworm AS dependencies
 ENV PYTHONDONTWRITEBYTECODE=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Copy the custom CTranslate2 wheel built with sm_52 support
-COPY --from=ct2-build /ct2-wheel.whl /ct2-wheel.whl
+COPY --from=ct2-build /tmp/*.whl /tmp/
 
 # Build the alignment wheel (WhisperX)
 COPY packaging/inference/build_alignment.py /build_alignment.py
@@ -59,7 +58,7 @@ RUN python3 /tmp/filter-ct2-lock.py /tmp/runtime.lock /tmp/runtime-no-ct2.lock
 
 # Install the custom CTranslate2 (with sm_52 support) first, then the rest
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir --no-compile /ct2-wheel.whl \
+    && /opt/venv/bin/pip install --no-cache-dir --no-compile /tmp/*.whl \
     && /opt/venv/bin/pip install --no-cache-dir --no-compile --require-hashes \
        --only-binary=:all: --find-links=/wheels -r /tmp/runtime-no-ct2.lock \
     && /opt/venv/bin/pip check
