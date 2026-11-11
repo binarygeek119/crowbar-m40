@@ -96,6 +96,11 @@ release with split versioning requeues nothing.
 `APPLICATION_VERSION`. Identifies a published release. Changing it alone never
 re-audits anything.
 
+### 0.4.16
+
+- Added Tesla M40 24GB (Maxwell sm_52) support. The CUDA image now builds CTranslate2 from source with Maxwell kernels included, so older GPUs that the stock wheels skip can run GPU acceleration instead of falling back to CPU.
+- Added a GitHub Actions workflow that publishes Docker images to the GitHub Container Registry on every push and tag.
+
 ### 0.4.15
 
 - Updates try a dropped connection to GitHub three times before reporting an error.
