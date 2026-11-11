@@ -76,11 +76,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 CROWBARR_IMAGE_VARIANT=cuda \
     TORCH_HOME=/config/models/torch NLTK_DATA=/config/models/nltk HOME=/config \
     PATH=/opt/venv/bin:$PATH
 ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib
+    LD_LIBRARY_PATH=/usr/local/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /config && chown 1000:1000 /config
+COPY --from=ct2-build /usr/local/lib/libctranslate2.so* /usr/local/lib/
 COPY --from=dependencies /opt/venv /opt/venv
 # The refinement add-on installs from this wheel, which PyPI does not host.
 COPY --from=dependencies /wheels /opt/crowbarr/wheels
