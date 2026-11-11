@@ -1,0 +1,168 @@
+name: Docker
+
+# Builds and publishes the CPU and CUDA Docker images to GitHub Container
+# Registry on every push to main, on every tag, and verifies every pull
+# request builds cleanly. The CUDA image is the headline here: it is what
+# Tesla M40 owners pull to run Crowbarr on Maxwell GPUs.
+#
+# Tags published:
+#   main branch  → latest / latest-cuda, main / main-cuda, sha-<short> / sha-<short>-cuda
+#   v* tag       → the version tag (with and without -cuda suffix) plus latest
+#   pull request → build only, nothing pushed
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: cpu
+            dockerfile: Dockerfile
+            suffix: ""
+          - variant: cuda
+            dockerfile: Dockerfile.cuda
+            suffix: -cuda
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
+          sudo docker image prune -af
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        run: |
+          image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          suffix="${{ matrix.suffix }}"
+          tags=()
+          case "${{ github.ref }}" in
+            refs/heads/main)
+              tags+=("$image:latest$suffix")
+              tags+=("$image:main$suffix")
+              tags+=("$image:sha-${GITHUB_SHA::7}$suffix")
+              ;;
+            refs/tags/v*)
+              version="${GITHUB_REF_NAME#v}"
+              tags+=("$image:$version$suffix")
+              tags+=("$image:${GITHUB_REF_NAME}$suffix")
+              tags+=("$image:latest$suffix")
+              ;;
+            *)
+              # pull request: build only, no tags needed
+              tags+=("$image:pr-test")
+              ;;
+          esac
+          {
+            echo "tags<<EOF"
+            printf '%s\n' "${tags[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          tags: crowbarr:verify
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+
+      - name: Verify dependencies and packaging
+        run: |
+          docker run --rm --entrypoint python crowbarr:verify -m pip check
+          docker run --rm --entrypoint python -v "$PWD/packaging:/checks:ro" crowbarr:verify /checks/packaging_smoke.py
+
+      - name: Health check
+        run: |
+          docker run -d --name verify-server crowbarr:verify
+          trap 'docker logs verify-server; docker rm -f verify-server' EXIT
+          for attempt in {1..30}; do
+            if docker exec verify-server python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8449/health', timeout=3)" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become healthy in 30 seconds" >&2
+          exit 1
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          suffix="${{ matrix.suffix }}"
+          case "${{ github.ref }}" in
+            refs/heads/main)
+              docker tag crowbarr:verify "$image:latest$suffix"
+              docker tag crowbarr:verify "$image:main$suffix"
+              docker tag crowbarr:verify "$image:sha-${GITHUB_SHA::7}$suffix"
+              docker push "$image:latest$suffix"
+              docker push "$image:main$suffix"
+              docker push "$image:sha-${GITHUB_SHA::7}$suffix"
+              ;;
+            refs/tags/v*)
+              version="${GITHUB_REF_NAME#v}"
+              docker tag crowbarr:verify "$image:$version$suffix"
+              docker tag crowbarr:verify "$image:${GITHUB_REF_NAME}$suffix"
+              docker tag crowbarr:verify "$image:latest$suffix"
+              docker push "$image:$version$suffix"
+              docker push "$image:${GITHUB_REF_NAME}$suffix"
+              docker push "$image:latest$suffix"
+              ;;
+          esac
+
+  summary:
+    name: Image summary
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print image references
+        run: |
+          image="ghcr.io/${{ github.repository }}"
+          echo "## 🐳 Docker images published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          case "${{ github.ref }}" in
+            refs/heads/main)
+              echo "| Variant | Image |" >> "$GITHUB_STEP_SUMMARY"
+              echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+              echo "| CPU | \`$image:latest\` |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| CUDA (M40) | \`$image:latest-cuda\` |" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            refs/tags/v*)
+              version="${GITHUB_REF_NAME#v}"
+              echo "| Variant | Image |" >> "$GITHUB_STEP_SUMMARY"
+              echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+              echo "| CPU | \`$image:$version\` |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| CUDA (M40) | \`$image:$version-cuda\` |" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
