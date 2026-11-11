@@ -32,7 +32,8 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release \
     -DOPENMP_RUNTIME=COMP \
     -DCUDA_ARCH_LIST="5.2;6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0" \
     -DBUILD_CLI=OFF \
-    && cmake --build build --parallel $(nproc)
+    && cmake --build build --parallel $(nproc) \
+    && cmake --install build
 
 # Build Python wheel
 WORKDIR /ct2/python
