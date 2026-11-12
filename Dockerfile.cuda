@@ -102,16 +102,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgomp1
     && mkdir -p /config && chown 1000:1000 /config
 COPY --from=ct2-build /usr/local/lib/libctranslate2.so* /usr/local/lib/
 COPY --from=ct2-build /usr/local/lib/libdnnl.so* /usr/local/lib/
-# Copy all required CUDA runtime libraries
+# Copy only essential CUDA runtime libraries (nvidia-docker provides the rest)
 COPY --from=ct2-build /usr/local/cuda/lib64/libcudart.so* /usr/local/lib/
 COPY --from=ct2-build /usr/local/cuda/lib64/libcublas.so* /usr/local/lib/
 COPY --from=ct2-build /usr/local/cuda/lib64/libcublasLt.so* /usr/local/lib/
-COPY --from=ct2-build /usr/local/cuda/lib64/libcusparse.so* /usr/local/lib/
-COPY --from=ct2-build /usr/local/cuda/lib64/libcusolver.so* /usr/local/lib/
-COPY --from=ct2-build /usr/local/cuda/lib64/libcurand.so* /usr/local/lib/
-COPY --from=ct2-build /usr/local/cuda/lib64/libnvrtc.so* /usr/local/lib/
-COPY --from=ct2-build /usr/local/cuda/lib64/libnvrtc-builtins.so* /usr/local/lib/
-COPY --from=ct2-build /usr/local/cuda/lib64/libnvToolsExt.so* /usr/local/lib/
 COPY --from=dependencies /opt/venv /opt/venv
 # The refinement add-on installs from this wheel, which PyPI does not host.
 COPY --from=dependencies /wheels /opt/crowbarr/wheels
