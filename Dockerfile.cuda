@@ -102,6 +102,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgomp1
     && mkdir -p /config && chown 1000:1000 /config
 COPY --from=ct2-build /usr/local/lib/libctranslate2.so* /usr/local/lib/
 COPY --from=ct2-build /usr/local/lib/libdnnl.so* /usr/local/lib/
+COPY --from=ct2-build /usr/local/cuda/lib64/libcudart.so* /usr/local/lib/
+COPY --from=ct2-build /usr/local/cuda/lib64/libcublas.so* /usr/local/lib/
+COPY --from=ct2-build /usr/local/cuda/lib64/libcublasLt.so* /usr/local/lib/
 COPY --from=dependencies /opt/venv /opt/venv
 # The refinement add-on installs from this wheel, which PyPI does not host.
 COPY --from=dependencies /wheels /opt/crowbarr/wheels
