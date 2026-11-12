@@ -94,8 +94,8 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: crowbarr:verify
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+          cache-from: type=gha,scope=${{ matrix.variant }}-v2
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}-v2
 
       - name: Verify dependencies and packaging
         run: |
